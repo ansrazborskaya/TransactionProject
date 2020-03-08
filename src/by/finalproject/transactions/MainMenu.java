@@ -54,7 +54,7 @@ public class MainMenu {
                     try {
                         TransactionForm formTrans = getTransactionFormFromConsole();
                         balanceService.doTransaction(formTrans);
-                    } catch (IOException | NumberFormatException ea) {
+                    } catch (IOException | NumberFormatException | SQLException ea) {
                         System.err.println("Invalid input");
                     }
                     break;
@@ -82,7 +82,7 @@ public class MainMenu {
 
         System.out.println("Enter amount:");
         Double amount = ioService.getDouble();
-        System.out.println("Enter bank_id:");
+        System.out.println("Enter bank_id: 1, 2 or 3:");
         int bank_id = ioService.getInt();
 
         return new AccountsForm(amount, bank_id);

@@ -13,7 +13,7 @@ public class DBManager {
     private static Connection connection;
 
     static {
-        DATABASE_URL = "jdbc:mysql:///127.0.0.1:3306/project1?serverTimezone=UTC";
+        DATABASE_URL = "jdbc:mysql://127.0.0.1:3306/project1?serverTimezone=UTC";
         try {
             connection = DriverManager.getConnection(DATABASE_URL, USER, PASS);
         } catch (SQLException e) {

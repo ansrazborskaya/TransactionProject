@@ -17,6 +17,7 @@ public class BalanceService {
     private static final String GET_ACCOUNTS = "select * from accounts;";
     private static final String SAVE_NEW_ACCOUNT  = "insert into accounts value (null, ?, ?);";
     private static final String GET_ACCOUNT = "select * from accounts where id = ?;";
+    private static final String VALIDATE_BANK = "select * from bank where id = ?;";
     private static final String GET_COMISSION = "select comission from bank  where id = ?;";
     private static final String UPDATE_ACCOUNT = "update accounts set amount = ? where id = ?;";
     private static final String SAVE_NEW_TRANSACTION = "insert into transactions value (null, ?, ?, ?, ?, ?);";
@@ -43,14 +44,44 @@ public class BalanceService {
 
     public void saveNewAccounts(AccountsForm form) throws SQLException {
 
+        if (validateBank(form.getBank_id())) {
 
-        PreparedStatement preparedStatement =
-                DBManager.getConnection().prepareStatement(SAVE_NEW_ACCOUNT);
+            PreparedStatement preparedStatement =
+                    DBManager.getConnection().prepareStatement(SAVE_NEW_ACCOUNT);
 
-        preparedStatement.setDouble(1, form.getAmount());
-        preparedStatement.setInt(2, form.getBank_id());
+            preparedStatement.setDouble(1, form.getAmount());
+            preparedStatement.setInt(2, form.getBank_id());
 
-        preparedStatement.executeUpdate();
+            preparedStatement.executeUpdate();
+            preparedStatement.close();
+        }
+    }
+
+    public boolean validateBank(int _bankId) {
+
+        boolean ret = true;
+
+        try
+        {
+            PreparedStatement ps = DBManager.getConnection().prepareStatement(VALIDATE_BANK);
+            ps.setInt( 1, _bankId);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (!rs.next())
+            {
+                ret = false;
+                System.err.println("Bank " + _bankId + " does not exist");
+            }
+
+            ps.close();
+        }
+        catch( SQLException e )
+        {
+            e.printStackTrace();
+        }
+
+        return ret;
     }
 
     private Account getAccountFromRS(ResultSet _rs) throws SQLException {
@@ -115,7 +146,7 @@ public class BalanceService {
         return comission;
     }
 
-    public void doTransaction (TransactionForm  _formTrans) {
+    public void doTransaction (TransactionForm  _formTrans) throws SQLException {
 
 
 
@@ -130,20 +161,26 @@ public class BalanceService {
         accountFrom = getAccount(_formTrans.getIdFrom());
         accountTo   = getAccount(_formTrans.getIdTo());
 
-        comission = getComission(accountFrom.getBank_id());
+
 
         if (validateTransaction(accountFrom, accountTo, _formTrans.getAmount())) {
 
-            result = true;
+            comission = getComission(accountFrom.getBank_id());
+            result    = true;
 
             if (accountFrom.getBank_id() == accountTo.getBank_id()) {
                 accountFrom.setAmount(accountFrom.getAmount() - _formTrans.getAmount());
                 accountTo.setAmount(accountTo.getAmount() + _formTrans.getAmount());
+
             }
             else {
                 accountFrom.setAmount(accountFrom.getAmount() - _formTrans.getAmount() - (_formTrans.getAmount()/100 * comission));
                 accountTo.setAmount(accountTo.getAmount() + _formTrans.getAmount());
             }
+
+            updateAccount(accountFrom);
+            updateAccount(accountTo);
+            saveTransaction(accountFrom.getId(), accountTo.getId(), _formTrans.getAmount(), result);
         }
 
     }
@@ -152,10 +189,20 @@ public class BalanceService {
 
         boolean ret = true;
 
-        if (_accountFrom.getAmount() < _amount) {
+        if(_accountFrom == null) {
+            ret = false;
+            System.err.println("Sender account does not exist");
+        }
+        else if (_accountFrom.getAmount() < _amount) {
             ret = false;
             System.err.println("Sender has not enough money!!!");
         }
+
+        if(_accountTo == null) {
+            ret = false;
+            System.err.println("Receiver account does not exist");
+        }
+
 
         return ret;
     }
@@ -165,8 +212,8 @@ public class BalanceService {
         PreparedStatement preparedStatement =
                 DBManager.getConnection().prepareStatement(UPDATE_ACCOUNT);
 
-        preparedStatement.setInt(1, account.getId());
-        preparedStatement.setDouble(2, account.getAmount());
+        preparedStatement.setInt(2, account.getId());
+        preparedStatement.setDouble(1, account.getAmount());
 
 
         preparedStatement.executeUpdate();
